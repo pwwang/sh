@@ -9,8 +9,8 @@ from setuptools import setup
 
 HERE = dirname(abspath(__file__))
 
-author = "Andrew Moffat"
-author_email = "andrew.robert.moffat@gmail.com"
+author = "pwwang(original: amoffat)"
+author_email = "pwwang@pwwang.com(andrew.robert.moffat@gmail.com)"
 keywords = ["subprocess", "process", "shell", "launch", "program"]
 
 
@@ -22,13 +22,13 @@ setup(
     name="sh",
     version=sh.__version__,
     description="Python subprocess replacement",
-    long_description=read("README.rst"),
+    long_description=read("README.md"),
     author=author,
     author_email=author_email,
     maintainer=author,
     maintainer_email=author_email,
     keywords=keywords,
-    url="https://github.com/amoffat/sh",
+    url="https://github.com/pwwang/sh",
     license="MIT",
     py_modules=["sh"],
     classifiers=[
