@@ -80,13 +80,13 @@ This required `pyyaml` to be installed
 The default global configuration file is `~/.sh.yaml`
 ```yaml
 ll:
-	l: True
+    l: True
 sort:
-	_sep: ''
-	_duplistkey: True
+    _sep: ''
+    _duplistkey: True
 cat_in:
-	path: cat
-	_in: <
+    path: cat
+    _in: <
 ```
 ```python
 (cat_in(_piped = True) < 'a.txt') | sort(t = '.', k = ['1,1', '2,2n'])
@@ -97,9 +97,9 @@ cat_in:
 You may also save some configurations in current work directory: `./.sh.yaml`
 ```yaml
 cat_in:
-	path: cat
-	_in: <
-	_piped: True
+    path: cat
+    _in: <
+    _piped: True
 ```
 ```python
 (cat_in() < 'a.txt') | sort(t = '.', k = ['1,1', '2,2n'])
@@ -109,8 +109,8 @@ Note that it is not a recursive update, which means that the whole configuration
 So in the above case if `./.sh.yaml` is like:
 ```yaml
 cat_in:
-	_in: <
-	_piped: True
+    _in: <
+    _piped: True
 ```
 Then the executable for `cat_in` will default to `cat_in` instead of `cat`, which will raise `CommandNotFound` exception.
 
