@@ -1,5 +1,5 @@
 """
-http://amoffat.github.io/sh/
+https://github.com/pwwang/sh, forked from https://github.com/amoffat/sh
 """
 #===============================================================================
 # Copyright (C) 2011-2017 by Andrew Moffat
@@ -24,8 +24,8 @@ http://amoffat.github.io/sh/
 #===============================================================================
 
 
-__version__ = "1.12.14"
-__project_url__ = "https://github.com/amoffat/sh"
+__version__ = "2019.4.2"
+__project_url__ = "https://github.com/pwwang/sh"
 
 
 import platform
@@ -713,9 +713,18 @@ class RunningCommand(object):
             spawn_process = False
             get_prepend_stack().append(self)
 
-
         if call_args["piped"] or call_args["iter"] or call_args["iter_noblock"]:
             should_wait = False
+
+        # if there are processes waiting for piping
+        self.piped_process = None
+        if get_piped_stack():
+            # don't spawn process, hold it until `__or__`
+            spawn_process = False
+            self.piped_process = get_piped_stack().pop()
+
+        if call_args["piped"]:
+            get_piped_stack().append(self)
 
         # we're running in the background, return self and let us lazily
         # evaluate
@@ -734,16 +743,19 @@ class RunningCommand(object):
         # set up which stream should write to the pipe
         # TODO, make pipe None by default and limit the size of the Queue
         # in oproc.OProc
-        pipe = OProc.STDOUT
+        self.pipe = OProc.STDOUT
         if call_args["iter"] == "out" or call_args["iter"] is True:
-            pipe = OProc.STDOUT
+            self.pipe = OProc.STDOUT
         elif call_args["iter"] == "err":
-            pipe = OProc.STDERR
+            self.pipe = OProc.STDERR
 
         if call_args["iter_noblock"] == "out" or call_args["iter_noblock"] is True:
-            pipe = OProc.STDOUT
+            self.pipe = OProc.STDOUT
         elif call_args["iter_noblock"] == "err":
-            pipe = OProc.STDERR
+            self.pipe = OProc.STDERR
+
+        self._stdout = stdout
+        self._stderr = stderr
 
         # there's currently only one case where we wouldn't spawn a child
         # process, and that's if we're using a with-context with our command
@@ -763,8 +775,8 @@ class RunningCommand(object):
             # self.process, but it has not been assigned yet
             process_assign_lock = threading.Lock()
             with process_assign_lock:
-                self.process = OProc(self, self.log, cmd, stdin, stdout, stderr,
-                        self.call_args, pipe, process_assign_lock)
+                self.process = OProc(self, self.log, cmd, stdin, self._stdout, self._stderr,
+                        self.call_args, self.pipe, process_assign_lock)
 
             logger_str = log_str_factory(self.ran, call_args, self.process.pid)
             self.log.set_context(logger_str)
@@ -830,6 +842,40 @@ class RunningCommand(object):
         self.wait()
         return self.process.exit_code
 
+    def __or__(self, rcmd2):
+        assert isinstance(rcmd2, RunningCommand)
+        if rcmd2.piped_process is None:
+            raise ValueError('Prevous command has to be called with "_piped = True"')
+        if self != rcmd2.piped_process:
+            raise ValueError('Unintended piped process.')
+        # invoke rcmd2
+        log_str_factory = rcmd2.call_args["log_msg"] or default_logger_str
+        logger_str = log_str_factory(rcmd2.ran, rcmd2.call_args)
+        rcmd2.log = Logger("command", logger_str)
+
+        rcmd2.log.info("starting process")
+
+        should_wait = not (rcmd2.call_args["piped"] or rcmd2.call_args["iter"] or \
+            rcmd2.call_args["iter_noblock"] or rcmd2.call_args['bg'])
+
+        if should_wait:
+            rcmd2._spawned_and_waited = True
+
+        # this lock is needed because of a race condition where a background
+        # thread, created in the OProc constructor, may try to access
+        # self.process, but it has not been assigned yet
+        process_assign_lock = threading.Lock()
+        with process_assign_lock:
+            rcmd2.process = OProc(rcmd2, rcmd2.log, rcmd2.cmd, self.process, rcmd2._stdout, \
+                rcmd2._stderr, rcmd2.call_args, rcmd2.pipe, process_assign_lock)
+
+        logger_str = log_str_factory(rcmd2.ran, rcmd2.call_args, rcmd2.process.pid)
+        rcmd2.log.set_context(logger_str)
+        rcmd2.log.info("process started")
+
+        if should_wait:
+            rcmd2.wait()
+        return rcmd2
 
     def __len__(self):
         return len(str(self))
@@ -955,6 +1001,12 @@ def get_prepend_stack():
     return tl._prepend_stack
 
 
+def get_piped_stack():
+    tp = Command.thread_piped
+    if not hasattr(tp, "_thread_piped"):
+        tp._thread_piped = []
+    return tp._thread_piped
+
 def special_kwarg_validator(kwargs, invalid_list):
     s1 = set(kwargs.keys())
     invalid_args = []
@@ -1061,6 +1113,7 @@ class Command(object):
     RunningCommand object, which represents the Command put into an execution
     state. """
     thread_local = threading.local()
+    thread_piped = threading.local()
 
     _call_args = {
         "fg": False, # run command in foreground
@@ -1358,7 +1411,6 @@ output"),
         call_args.update(self._partial_call_args)
         call_args.update(extracted_call_args)
 
-
         # handle a None.  this is added back only to not break the api in the
         # 1.* version.  TODO remove this in 2.0, as "ok_code", if specified,
         # should always be a definitive value or list of values, and None is
@@ -1376,6 +1428,8 @@ output"),
             first_arg = args.pop(0)
             if isinstance(first_arg, RunningCommand):
                 if first_arg.call_args["piped"]:
+                    if get_piped_stack() and get_piped_stack()[-1] == first_arg:
+                        get_piped_stack().pop()
                     stdin = first_arg.process
                 else:
                     stdin = first_arg.process._pipe_queue
