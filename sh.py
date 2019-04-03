@@ -1414,7 +1414,6 @@ output"),
         get_prepend_stack().pop()
 
     def __call__(self, *args, **kwargs):
-
         kwargs = kwargs.copy()
         args = list(args)
 
@@ -1477,12 +1476,10 @@ output"),
 
         processed_args = compile_args(args, kwargs, call_args["sep"],
             call_args["prefix"], call_args['duplistkey'])
-
         # makes sure our arguments are broken up correctly
         split_args = self._partial_baked_args + processed_args
 
         final_args = split_args
-
         cmd.extend(final_args)
 
         # if we're running in foreground mode, we need to completely bypass
