@@ -770,9 +770,10 @@ class RunningCommand(object):
         if self.call_args['shell']:
             # run with Popen(cmd, shell = True)
             import subprocess
-            cmd = subprocess.list2cmdline(self.cmd)
-            self.process = subprocess.Popen(cmd, shell = True)
+            self.process = subprocess.Popen(' '.join(self.cmd), shell = True)
+            #self.process = subprocess.Popen(cmd, shell = True)
             setattr(self.process, 'timed_out', False)
+            setattr(self.process, '_stdin_process', False)
             self.wait()
             return self
         if self.call_args['with'] or (self.piped_process is not None) or self._stdin == '<' \
