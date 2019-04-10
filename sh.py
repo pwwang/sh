@@ -382,8 +382,8 @@ class ErrorReturnCode(Exception):
 
     def __init__(self, full_cmd, stdout, stderr, truncate=True):
         self.full_cmd = full_cmd
-        self.stdout = stdout
-        self.stderr = stderr
+        self.stdout = stdout or ''
+        self.stderr = stderr or ''
 
         exc_stdout = self.stdout
         if truncate:
@@ -767,6 +767,14 @@ class RunningCommand(object):
         self.invoke()
 
     def invoke(self):
+        if self.call_args['shell']:
+            # run with Popen(cmd, shell = True)
+            import subprocess
+            cmd = subprocess.list2cmdline(self.cmd)
+            self.process = subprocess.Popen(cmd, shell = True)
+            setattr(self.process, 'timed_out', False)
+            self.wait()
+            return self
         if self.call_args['with'] or (self.piped_process is not None) or self._stdin == '<' \
             or self._stdout == '>' or self._stderr == '>':
             return
@@ -1207,7 +1215,7 @@ class Command(object):
         # arguments, like for short options
         # for example, --arg=derp, '=' is the sep
         "sep": " ",
-
+        "shell": False,
         # the prefix used for long arguments
         "prefix": "auto",
 
