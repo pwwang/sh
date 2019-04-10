@@ -1591,32 +1591,34 @@ def aggregate_keywords(keywords, sep, prefix, duplistkey, raw=False):
 
     processed = []
     encode = encode_to_py3bytes_or_py2str
-
     positional = keywords.pop('-', keywords.pop('_', []))
     if not isinstance(positional, (tuple, list)):
         positional = [positional]
+
     for k, v in keywords.items():
         # we're passing a short arg as a kwarg, example:
         # cut(d="\t")
+        prefix2 = prefix
         if prefix == 'auto':
-            prefix = '-' if len(k) == 1 else '--'
+            prefix2 = '-' if len(k) == 1 else '--'
         if not raw:
             k = k.replace('_', '-')
-        key = encode(prefix + k)
+        key = encode(prefix2 + k)
+        sep2 = sep
         if sep == 'auto':
-            sep = ' ' if len(k) == 1 else '='
+            sep2 = ' ' if len(k) == 1 else '='
 
         if isinstance(v, (tuple, list)):
             if not duplistkey:
-                processed.append(encode("%s%s%s" % (key, sep, ' '.join(str(x) for x in v))))
+                processed.append(encode("%s%s%s" % (key, sep2, ' '.join(str(x) for x in v))))
             else:
-                processed.extend(encode("%s%s%s" % (key, sep, x)) for x in v)
+                processed.extend(encode("%s%s%s" % (key, sep2, x)) for x in v)
         elif v is False:
             pass
         elif v is True:
             processed.append(key)
         else:
-            processed.append(encode("%s%s%s" % (key, sep, v)))
+            processed.append(encode("%s%s%s" % (key, sep2, v)))
 
     for pos in positional:
         processed.append(encode(pos))
