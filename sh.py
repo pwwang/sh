@@ -1591,11 +1591,14 @@ def aggregate_keywords(keywords, sep, prefix, duplistkey, raw=False):
 
     processed = []
     encode = encode_to_py3bytes_or_py2str
-    positional = keywords.pop('-', keywords.pop('_', []))
+    #positional = keywords.pop('-', keywords.pop('_', []))
+    # try to keep keywords intact
+    positional = keywords.get('-', keywords.get('_', []))
     if not isinstance(positional, (tuple, list)):
         positional = [positional]
 
     for k, v in keywords.items():
+        if k in ('-', '_'): continue
         # we're passing a short arg as a kwarg, example:
         # cut(d="\t")
         prefix2 = prefix
